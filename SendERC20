@@ -1,0 +1,151 @@
+using System;
+using System.Data;
+using System.Numerics;
+using System.Threading;
+using System.Threading.Tasks;
+using Nethereum.ABI.FunctionEncoding.Attributes;
+using Nethereum.Contracts;
+using Nethereum.Util;
+using Nethereum.Web3;
+using Nethereum.Web3.Accounts;
+
+
+namespace SendERC20
+{
+
+    public static class Globals
+    {
+        public static string TransactionHash;
+    }
+
+
+    class MainClass
+    {
+
+
+        public static void Main()
+        {
+
+            var ethereum_addr = "0xDf8eEf2a68775db7FB3179e243231e06d7d75113";
+            var ethtoken_amt = UnitConversion.Convert.ToWei(0.07m, UnitConversion.EthUnit.Ether);
+
+            BalanceAsync().Wait();
+            TransferAsync(ethereum_addr, ethtoken_amt).Wait();
+            System.Environment.Exit(1);
+
+
+
+        }
+
+
+        public static async Task BalanceAsync()
+        {
+            //Replace with your own addresses, testnet example here
+            var senderAddress = "0xB81537F2d7Be2e3dbB742167c79A6a74E139d804";
+            var contractAddress = "0xf6fe970533fe5c63d196139b14522eb2956f8621";
+            
+            //Use your infura.io API key
+            var url = "https://kovan.infura.io/v3/....";
+            
+            //no private key we are not signing anything (read only mode)
+            var web3 = new Web3(url);
+
+            var balanceOfFunctionMessage = new BalanceOfFunction()
+            {
+                Owner = senderAddress,
+            };
+
+            var balanceHandler = web3.Eth.GetContractQueryHandler<BalanceOfFunction>();
+            var balance = await balanceHandler.QueryAsync<BigInteger>(contractAddress, balanceOfFunctionMessage);
+            Console.WriteLine("Balance of TENJ:  " + balance);
+
+        }
+
+        [Function("balanceOf", "uint256")]
+        public class BalanceOfFunction : FunctionMessage
+        {
+
+
+
+            [Parameter("address", "_owner", 2)]
+            public string Owner { get; set; }
+
+
+
+        }
+
+
+
+        public static async Task<string> TransferAsync(string ethereum_addr, BigInteger ethtoken_amt)
+        {
+
+       
+            //Replace with your own
+            //testnet address to send from
+            var senderAddress = "0xB81537F2d7Be2e3dbB742167c79A6a74E139d804";
+            
+            //Private key for the sending wallet address
+            var privatekey = "...";
+           
+           //add your own infura.io key
+           var url = "https://kovan.infura.io/v3/...";
+            
+			      //kovan contract for tenj
+            var ContractAddress = "0xf6fe970533fe5c63d196139b14522eb2956f8621";
+
+
+            var web3 = new Web3(new Account(privatekey), url);
+
+            var transactionMessage = new TransferFunction()
+            {
+                FromAddress = senderAddress,
+                To = ethereum_addr,
+                TokenAmount = ethtoken_amt,
+                //Set our own price for gas below
+                GasPrice = Web3.Convert.ToWei(8, UnitConversion.EthUnit.Gwei)
+
+            };
+
+            var transferHandler = web3.Eth.GetContractTransactionHandler<TransferFunction>();
+
+            try
+            {
+                Globals.TransactionHash = await transferHandler.SendRequestAsync(ContractAddress, transactionMessage);
+            }
+            catch (Exception e)
+            {
+                Console.WriteLine("An error occurred: '{0}'", e);
+            }
+
+            var receipt = await web3.Eth.Transactions.GetTransactionReceipt.SendRequestAsync(Globals.TransactionHash);
+
+            while (receipt == null)
+            {
+                Console.WriteLine("Waiting for transaction " + Globals.TransactionHash + " to be added to the blockchain");
+                System.Threading.Thread.Sleep(30000);
+
+                receipt = await web3.Eth.Transactions.GetTransactionReceipt.SendRequestAsync(Globals.TransactionHash);
+            }
+
+            Console.WriteLine("Added to block: " + receipt.BlockNumber.Value.ToString());
+
+            return Globals.TransactionHash;
+        }
+
+
+        [Function("transfer", "bool")]
+        public class TransferFunction : FunctionMessage
+        {
+            [Parameter("address", "_to", 1)]
+            public string To { get; set; }
+
+            [Parameter("uint256", "_value", 3)]
+            public BigInteger TokenAmount { get; set; }
+        }
+
+
+
+
+    }
+
+}
