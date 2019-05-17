@@ -25,8 +25,10 @@ namespace SendERC20
 
         public static void Main()
         {
-
+           //testnet address
             var ethereum_addr = "0xDf8eEf2a68775db7FB3179e243231e06d7d75113";
+	    
+	    //example sending amount 0.07
             var ethtoken_amt = UnitConversion.Convert.ToWei(0.07m, UnitConversion.EthUnit.Ether);
 
             BalanceAsync().Wait();
@@ -90,7 +92,7 @@ namespace SendERC20
            //add your own infura.io key
            var url = "https://kovan.infura.io/v3/...";
             
-			      //kovan contract for tenj
+	    //kovan contract for tenj
             var ContractAddress = "0xf6fe970533fe5c63d196139b14522eb2956f8621";
 
 
